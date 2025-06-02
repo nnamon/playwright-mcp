@@ -15,21 +15,16 @@
  */
 
 import { z } from 'zod';
-import fs from 'fs/promises';
 
 import { defineTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { outputFile } from '../config.js';
 import { generateLocator } from './utils.js';
 
 import type * as playwright from 'playwright';
 
 const screenshotSchema = z.object({
-  raw: z.boolean().optional().describe('Whether to return without compression (in PNG format). Default is false, which returns a JPEG image.'),
-  filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
   element: z.string().optional().describe('Human-readable element description used to obtain permission to screenshot the element. If not provided, the screenshot will be taken of viewport. If element is provided, ref must be provided too.'),
   ref: z.string().optional().describe('Exact target element reference from the page snapshot. If not provided, the screenshot will be taken of viewport. If ref is provided, element must be provided too.'),
-  saveToFile: z.boolean().default(false).describe('Save screenshot to file in addition to returning image data'),
   format: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
   quality: z.number().min(0).max(100).default(80).describe('JPEG quality (0-100), only for JPEG format'),
 }).refine(data => {
@@ -53,16 +48,13 @@ const screenshot = defineTool({
     const tab = context.currentTabOrDie();
     const snapshot = tab.snapshotOrDie();
     
-    // Determine file type based on new format parameter or legacy raw parameter
-    const fileType = params.format || (params.raw ? 'png' : 'jpeg');
+    // Use the format parameter
+    const fileType = params.format;
     
-    // Determine quality - use the new quality parameter or default based on format
+    // Set quality for JPEG
     const quality = fileType === 'jpeg' ? params.quality : undefined;
     
-    // Generate filename only if saving to file
-    const fileName = params.saveToFile ? await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`) : null;
-    
-    // Screenshot options - don't include path since we'll handle file writing separately
+    // Screenshot options
     const options: playwright.PageScreenshotOptions = { 
       type: fileType, 
       quality, 
@@ -72,7 +64,7 @@ const screenshot = defineTool({
     const isElementScreenshot = params.element && params.ref;
 
     const code = [
-      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'}${params.saveToFile ? ` and save it as ${fileName}` : ' and return data'}`,
+      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'}`,
     ];
 
     const locator = params.ref ? snapshot.refLocator({ element: params.element || '', ref: params.ref }) : null;
@@ -85,24 +77,11 @@ const screenshot = defineTool({
     const action = async () => {
       const screenshotBuffer = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
       
-      // Save to file if requested
-      if (params.saveToFile && fileName && screenshotBuffer) {
-        await fs.writeFile(fileName, screenshotBuffer);
-        
-        // When saving to file, only return text status to save tokens
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `Screenshot saved to: ${fileName} (${screenshotBuffer.length} bytes, ${fileType.toUpperCase()})`
-          }]
-        };
-      }
-      
-      // When not saving to file, return as ImageContent (compliant with MCP spec)
+      // Return as ImageContent (compliant with MCP spec)
       const content = [
         {
           type: 'text' as const,
-          text: `Screenshot taken (${screenshotBuffer.length} bytes)`
+          text: `Screenshot taken (${screenshotBuffer.length} bytes, ${fileType.toUpperCase()})`
         },
         {
           type: 'image' as const,
