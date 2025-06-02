@@ -20,11 +20,15 @@ import type { TestOptions } from './tests/fixtures.js';
 
 export default defineConfig<TestOptions>({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: !process.env.MCP_IN_DOCKER, // Disable parallel in Docker to avoid conflicts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.MCP_IN_DOCKER ? 1 : (process.env.CI ? 1 : undefined),
   reporter: 'list',
+  use: {
+    // Global test timeout
+    timeout: 30000,
+  },
   projects: [
     { name: 'chrome' },
     { name: 'msedge', use: { mcpBrowser: 'msedge' } },

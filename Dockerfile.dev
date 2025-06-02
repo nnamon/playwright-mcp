@@ -32,5 +32,6 @@ RUN npm run build
 # Install chromium browser
 RUN npx -y playwright-core install --no-shell chromium
 
-# Run in headless and only with chromium (other browsers need more dependencies not included in this image)
-ENTRYPOINT ["node", "cli.js", "--headless", "--browser", "chromium", "--no-sandbox"]
+# Default command for running tests
+# Can be overridden in docker-compose.yml or docker run
+CMD ["npm", "test"]

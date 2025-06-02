@@ -22,24 +22,21 @@ test('browser_evaluate - simple expression', async ({ client, server }) => {
     arguments: { url: server.HELLO_WORLD },
   });
 
-  try {
-    const result = await client.callTool({
-      name: 'browser_evaluate',
-      arguments: { 
-        expression: '2 + 2'
-      },
-    });
-    
-    // Log the actual result to debug
-    console.log('Result:', JSON.stringify(result, null, 2));
-    
-    const response = JSON.parse(result.content[0].text);
-    expect(response.result).toBe('4');
-    expect(response.type).toBe('number');
-  } catch (error) {
-    console.error('Error calling browser_evaluate:', error);
-    throw error;
+  const result = await client.callTool({
+    name: 'browser_evaluate',
+    arguments: { 
+      expression: '2 + 2'
+    },
+  });
+  
+  // Check if the result is an error
+  if (result.isError) {
+    throw new Error(`Tool returned error: ${result.content[0].text}`);
   }
+  
+  const response = JSON.parse(result.content[0].text);
+  expect(response.result).toBe('4');
+  expect(response.type).toBe('number');
 });
 
 test('browser_evaluate - with args', async ({ client, server }) => {
