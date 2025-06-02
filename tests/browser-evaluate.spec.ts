@@ -23,6 +23,11 @@ test('browser_evaluate - simple expression', async ({ client, server }) => {
     arguments: { url: server.HELLO_WORLD },
   });
   
+  // Debug: log navigation result
+  if (navResult.isError) {
+    console.error('Navigation failed:', navResult.content[0].text);
+  }
+  
   // Ensure navigation succeeded
   expect(navResult.isError).toBeFalsy();
 
