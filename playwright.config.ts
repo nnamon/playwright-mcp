@@ -29,18 +29,14 @@ export default defineConfig<TestOptions>({
     // Global test timeout
     timeout: 30000,
   },
-  projects: [
+  projects: process.env.MCP_IN_DOCKER ? [
+    // Only Chromium is available in Docker
+    { name: 'chromium', use: { mcpBrowser: 'chromium' } },
+  ] : [
+    // All browsers available locally
     { name: 'chrome' },
     { name: 'msedge', use: { mcpBrowser: 'msedge' } },
     { name: 'chromium', use: { mcpBrowser: 'chromium' } },
-    ...process.env.MCP_IN_DOCKER ? [{
-      name: 'chromium-docker',
-      grep: /browser_navigate|browser_click/,
-      use: {
-        mcpBrowser: 'chromium',
-        mcpMode: 'docker' as const
-      }
-    }] : [],
     { name: 'firefox', use: { mcpBrowser: 'firefox' } },
     { name: 'webkit', use: { mcpBrowser: 'webkit' } },
   ],

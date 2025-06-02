@@ -17,10 +17,14 @@
 import { test, expect } from './fixtures.js';
 
 test('browser_evaluate - simple expression', async ({ client, server }) => {
-  await client.callTool({
+  // First navigate to a page
+  const navResult = await client.callTool({
     name: 'browser_navigate',
     arguments: { url: server.HELLO_WORLD },
   });
+  
+  // Ensure navigation succeeded
+  expect(navResult.isError).toBeFalsy();
 
   const result = await client.callTool({
     name: 'browser_evaluate',
@@ -30,9 +34,10 @@ test('browser_evaluate - simple expression', async ({ client, server }) => {
   });
   
   // Check if the result is an error
-  if (result.isError) {
-    throw new Error(`Tool returned error: ${result.content[0].text}`);
-  }
+  expect(result.isError).toBeFalsy();
+  expect(result.content).toBeDefined();
+  expect(result.content[0]).toBeDefined();
+  expect(result.content[0].type).toBe('text');
   
   const response = JSON.parse(result.content[0].text);
   expect(response.result).toBe('4');
