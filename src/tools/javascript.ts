@@ -34,7 +34,7 @@ const evaluate = defineTool({
   },
 
   handle: async (context, params) => {
-    const tab = context.currentTabOrDie();
+    const tab = await context.ensureTab();
     const startTime = Date.now();
     
     // Store console messages during execution

@@ -16,7 +16,7 @@
 
 import { test, expect } from './fixtures.js';
 
-test.only('browser_evaluate - simple expression', async ({ client, server }) => {
+test('browser_evaluate - simple expression', async ({ client, server }) => {
   await client.callTool({
     name: 'browser_navigate',
     arguments: { url: server.HELLO_WORLD },
