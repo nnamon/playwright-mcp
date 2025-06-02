@@ -4,20 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Build and Compile
-- `npm run build` - Compile TypeScript to JavaScript (outputs to `lib/` directory)
-- `npm run watch` - Watch mode compilation for development
-- `npm run clean` - Remove compiled output
+### Primary Commands (Use Make for consistency)
+- `make help` - Show all available make targets
+- `make install` - Install Node.js dependencies
+- `make build` - Compile TypeScript to JavaScript (outputs to `lib/` directory)
+- `make test` - Run all Playwright tests across all browsers
+- `make lint` - Run ESLint and TypeScript type checking (also updates README)
+- `make clean` - Remove build artifacts and dependencies
 
-### Testing
-- `npm test` - Run all Playwright tests across all browsers
-- `npm run ctest` - Run tests on Chrome only
-- `npm run ftest` - Run tests on Firefox only  
-- `npm run wtest` - Run tests on WebKit only
+### Development Workflow
+- `make dev` - Start development mode with file watching
+- `make serve` - Serve the MCP server locally for development
+- `make debug` - Start the MCP server with debug output
 
-### Code Quality
-- `npm run lint` - Run ESLint and TypeScript type checking (also updates README)
-- `npm run update-readme` - Update README.md with generated tool documentation
+### Testing Variants
+- `make test-chrome` - Run tests on Chrome only
+- `make test-firefox` - Run tests on Firefox only  
+- `make test-webkit` - Run tests on WebKit only
+
+### Docker Operations
+- `make docker-build` - Build Docker images for testing
+- `make docker-test` - Run all tests in Docker containers
+- `make docker-server` - Start MCP server in Docker for manual testing
+- `make docker-cleanup` - Clean up Docker containers and images
+- `make docker-shell` - Start interactive shell in development container
+
+### CI/Release
+- `make ci` - Run full CI pipeline (lint, build, test)
+- `make docker-ci` - Run full CI pipeline in Docker
+- `make release` - Prepare for release (build, test, lint)
+
+### Maintenance
+- `make check-deps` - Check for outdated dependencies
+- `make update-deps` - Update dependencies to latest versions
+
+### Legacy npm scripts (prefer make commands)
+- `npm run build`, `npm test`, `npm run lint` still work but use `make` for consistency
 
 ## Architecture Overview
 
@@ -83,7 +105,7 @@ Tests use custom fixtures (`tests/fixtures.ts`) that can:
 ### Required Workflow
 1. **Create feature branch**: `git checkout -b feature/description-of-work`
 2. **Implement changes** on the feature branch
-3. **Test functionality**: Use `npm test` for comprehensive testing
+3. **Test functionality**: Use `make test` for comprehensive testing (or `make docker-test` for containerized testing)
 4. **Commit changes** to feature branch with descriptive messages
 5. **Push branch**: `git push -u origin feature/branch-name`
 6. **Test with running server**: Before creating a PR, ask the user to verify the changes work with the running server
