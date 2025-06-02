@@ -25,9 +25,10 @@ import type * as playwright from 'playwright';
 
 const screenshotSchema = z.object({
   raw: z.boolean().optional().describe('Whether to return without compression (in PNG format). Default is false, which returns a JPEG image.'),
-  filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
+  filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified. This is ignored if `returnImage` is true.'),
   element: z.string().optional().describe('Human-readable element description used to obtain permission to screenshot the element. If not provided, the screenshot will be taken of viewport. If element is provided, ref must be provided too.'),
   ref: z.string().optional().describe('Exact target element reference from the page snapshot. If not provided, the screenshot will be taken of viewport. If ref is provided, element must be provided too.'),
+  returnImage: z.boolean().optional().describe('Whether to return the image as a base64 string instead of saving to a file. Defaults to false.'),
 }).refine(data => {
   return !!data.element === !!data.ref;
 }, {
@@ -49,12 +50,17 @@ const screenshot = defineTool({
     const tab = context.currentTabOrDie();
     const snapshot = tab.snapshotOrDie();
     const fileType = params.raw ? 'png' : 'jpeg';
-    const fileName = await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`);
-    const options: playwright.PageScreenshotOptions = { type: fileType, quality: fileType === 'png' ? undefined : 50, scale: 'css', path: fileName };
+    const options: playwright.PageScreenshotOptions = { type: fileType, quality: fileType === 'png' ? undefined : 50, scale: 'css' };
     const isElementScreenshot = params.element && params.ref;
+    let fileName: string | undefined;
+
+    if (!params.returnImage) {
+      fileName = await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`);
+      options.path = fileName;
+    }
 
     const code = [
-      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'} and save it as ${fileName}`,
+      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'}${fileName ? ` and save it as ${fileName}` : ''}`,
     ];
 
     const locator = params.ref ? snapshot.refLocator({ element: params.element || '', ref: params.ref }) : null;
@@ -64,13 +70,13 @@ const screenshot = defineTool({
     else
       code.push(`await page.screenshot(${javascript.formatObject(options)});`);
 
-    const includeBase64 = context.clientSupportsImages();
+    const includeBase64 = params.returnImage || context.clientSupportsImages();
     const action = async () => {
-      const screenshot = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
+      const screenshotBuffer = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
       return {
         content: includeBase64 ? [{
           type: 'image' as 'image',
-          data: screenshot.toString('base64'),
+          data: screenshotBuffer.toString('base64'),
           mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
         }] : []
       };
