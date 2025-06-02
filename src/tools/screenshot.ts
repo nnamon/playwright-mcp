@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import fs from 'fs/promises';
 
 import { defineTool } from './tool.js';
 import * as javascript from '../javascript.js';
@@ -28,6 +29,9 @@ const screenshotSchema = z.object({
   filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
   element: z.string().optional().describe('Human-readable element description used to obtain permission to screenshot the element. If not provided, the screenshot will be taken of viewport. If element is provided, ref must be provided too.'),
   ref: z.string().optional().describe('Exact target element reference from the page snapshot. If not provided, the screenshot will be taken of viewport. If ref is provided, element must be provided too.'),
+  saveToFile: z.boolean().default(false).describe('Save screenshot to file instead of returning data'),
+  format: z.enum(['png', 'jpeg']).default('png').describe('Image format when returning data'),
+  quality: z.number().min(0).max(100).default(80).describe('JPEG quality (0-100), only for JPEG format'),
 }).refine(data => {
   return !!data.element === !!data.ref;
 }, {
@@ -48,13 +52,27 @@ const screenshot = defineTool({
   handle: async (context, params) => {
     const tab = context.currentTabOrDie();
     const snapshot = tab.snapshotOrDie();
-    const fileType = params.raw ? 'png' : 'jpeg';
-    const fileName = await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`);
-    const options: playwright.PageScreenshotOptions = { type: fileType, quality: fileType === 'png' ? undefined : 50, scale: 'css', path: fileName };
+    
+    // Determine file type based on new format parameter or legacy raw parameter
+    const fileType = params.format || (params.raw ? 'png' : 'jpeg');
+    
+    // Determine quality - use the new quality parameter or default based on format
+    const quality = fileType === 'jpeg' ? params.quality : undefined;
+    
+    // Generate filename only if saving to file
+    const fileName = params.saveToFile ? await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`) : null;
+    
+    // Screenshot options - don't include path since we'll handle file writing separately
+    const options: playwright.PageScreenshotOptions = { 
+      type: fileType, 
+      quality, 
+      scale: 'css'
+    };
+    
     const isElementScreenshot = params.element && params.ref;
 
     const code = [
-      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'} and save it as ${fileName}`,
+      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'}${params.saveToFile ? ` and save it as ${fileName}` : ' and return data'}`,
     ];
 
     const locator = params.ref ? snapshot.refLocator({ element: params.element || '', ref: params.ref }) : null;
@@ -64,16 +82,39 @@ const screenshot = defineTool({
     else
       code.push(`await page.screenshot(${javascript.formatObject(options)});`);
 
-    const includeBase64 = context.clientSupportsImages();
     const action = async () => {
-      const screenshot = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
-      return {
-        content: includeBase64 ? [{
-          type: 'image' as 'image',
-          data: screenshot.toString('base64'),
-          mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
-        }] : []
+      const screenshotBuffer = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
+      
+      // Save to file if requested
+      if (params.saveToFile && fileName && screenshotBuffer) {
+        await fs.writeFile(fileName, screenshotBuffer);
+      }
+      
+      const content = [];
+      
+      // Always return the enhanced response format (default behavior)
+      const response = {
+        filename: params.saveToFile ? fileName : undefined,
+        data: screenshotBuffer.toString('base64'),
+        mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
+        size: screenshotBuffer.length
       };
+      
+      content.push({
+        type: 'text' as const,
+        text: JSON.stringify(response, null, 2)
+      });
+      
+      // Also include image content if client supports images
+      if (context.clientSupportsImages()) {
+        content.push({
+          type: 'image' as const,
+          data: screenshotBuffer.toString('base64'),
+          mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
+        });
+      }
+      
+      return { content };
     };
 
     return {
