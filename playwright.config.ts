@@ -20,23 +20,23 @@ import type { TestOptions } from './tests/fixtures.js';
 
 export default defineConfig<TestOptions>({
   testDir: './tests',
-  fullyParallel: !process.env.MCP_IN_DOCKER, // Disable parallel in Docker to avoid conflicts
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.MCP_IN_DOCKER ? 1 : (process.env.CI ? 1 : undefined),
+  workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
-  use: {
-    // Global test timeout
-    timeout: 30000,
-  },
-  projects: process.env.MCP_IN_DOCKER ? [
-    // Only Chromium is available in Docker
-    { name: 'chromium', use: { mcpBrowser: 'chromium' } },
-  ] : [
-    // All browsers available locally
+  projects: [
     { name: 'chrome' },
     { name: 'msedge', use: { mcpBrowser: 'msedge' } },
     { name: 'chromium', use: { mcpBrowser: 'chromium' } },
+    ...process.env.MCP_IN_DOCKER ? [{
+      name: 'chromium-docker',
+      grep: /browser_navigate|browser_click/,
+      use: {
+        mcpBrowser: 'chromium',
+        mcpMode: 'docker' as const
+      }
+    }] : [],
     { name: 'firefox', use: { mcpBrowser: 'firefox' } },
     { name: 'webkit', use: { mcpBrowser: 'webkit' } },
   ],

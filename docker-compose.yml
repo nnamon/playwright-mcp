@@ -42,15 +42,9 @@ services:
       - ./test-results:/app/test-results
       - ./src:/app/src
       - ./tests:/app/tests
-      - ./lib:/app/lib
     environment:
       - NODE_ENV=test
       - MCP_IN_DOCKER=1
-      - PWTEST_WORKERS=1  # Run tests sequentially to avoid browser conflicts
-      - DEBUG=pw:browser  # Enable browser debug logs
-    # Override the ENTRYPOINT to allow custom commands
-    entrypoint: []
     command: npm test
-    working_dir: /app
     depends_on:
       - playwright-mcp-dev

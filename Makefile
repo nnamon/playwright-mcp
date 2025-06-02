@@ -21,9 +21,8 @@ help:
 	@echo "Examples:"
 	@echo "  make install          # Install dependencies"
 	@echo "  make build            # Build the project" 
-	@echo "  make test             # Run all tests locally"
-	@echo "  make docker-test      # Run all tests in Docker"
-	@echo "  make docker-test-specific TESTS=\"browser_evaluate\"  # Run specific tests"
+	@echo "  make test             # Run all tests"
+	@echo "  make docker-test      # Run tests in Docker"
 	@echo "  make dev              # Start development mode"
 
 ## Install - Install Node.js dependencies
@@ -87,18 +86,6 @@ docker-test: docker-build
 	@echo "Running tests in Docker..."
 	mkdir -p $(TEST_RESULTS_DIR)
 	docker-compose run --rm test-runner
-
-## Docker-test-watch - Run tests in watch mode in Docker
-docker-test-watch: docker-build
-	@echo "Running tests in watch mode in Docker..."
-	mkdir -p $(TEST_RESULTS_DIR)
-	docker-compose run --rm test-runner npm test -- --ui
-
-## Docker-test-specific - Run specific tests in Docker (usage: make docker-test-specific TESTS="test-name")
-docker-test-specific: docker-build
-	@echo "Running specific tests in Docker..."
-	mkdir -p $(TEST_RESULTS_DIR)
-	docker-compose run --rm test-runner npm test -- --grep "$(TESTS)"
 
 ## Docker-server - Start MCP server in Docker for manual testing
 docker-server: docker-build
