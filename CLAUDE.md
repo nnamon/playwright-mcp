@@ -105,11 +105,11 @@ Tests use custom fixtures (`tests/fixtures.ts`) that can:
 ### Required Workflow
 1. **Create feature branch**: `git checkout -b feature/description-of-work`
 2. **Implement changes** on the feature branch
-3. **Test functionality**: Use `make test` for comprehensive testing (or `make docker-test` for containerized testing)
+3. **Build the project**: Use `make build` to ensure the code compiles without errors
 4. **Commit changes** to feature branch with descriptive messages
 5. **Push branch**: `git push -u origin feature/branch-name`
-6. **Test with running server**: Before creating a PR, ask the user to verify the changes work with the running server
-7. **Create Pull Request**: Use `gh pr create` with proper title and description ONLY after all tests pass and user confirms the implementation works
+6. **Request manual testing**: Ask the user to manually test the changes with a running server and approve the implementation
+7. **Create Pull Request**: Use `gh pr create` with proper title and description ONLY after the user confirms the implementation works correctly
 8. **Only merge** after review/approval
 
 ### Important Development Practices
