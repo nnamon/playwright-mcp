@@ -18,16 +18,15 @@ import { z } from 'zod';
 
 import { defineTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { outputFile } from '../config.js';
 import { generateLocator } from './utils.js';
 
 import type * as playwright from 'playwright';
 
 const screenshotSchema = z.object({
-  raw: z.boolean().optional().describe('Whether to return without compression (in PNG format). Default is false, which returns a JPEG image.'),
-  filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
   element: z.string().optional().describe('Human-readable element description used to obtain permission to screenshot the element. If not provided, the screenshot will be taken of viewport. If element is provided, ref must be provided too.'),
   ref: z.string().optional().describe('Exact target element reference from the page snapshot. If not provided, the screenshot will be taken of viewport. If ref is provided, element must be provided too.'),
+  format: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
+  quality: z.number().min(0).max(100).default(80).describe('JPEG quality (0-100), only for JPEG format'),
 }).refine(data => {
   return !!data.element === !!data.ref;
 }, {
@@ -48,13 +47,24 @@ const screenshot = defineTool({
   handle: async (context, params) => {
     const tab = context.currentTabOrDie();
     const snapshot = tab.snapshotOrDie();
-    const fileType = params.raw ? 'png' : 'jpeg';
-    const fileName = await outputFile(context.config, params.filename ?? `page-${new Date().toISOString()}.${fileType}`);
-    const options: playwright.PageScreenshotOptions = { type: fileType, quality: fileType === 'png' ? undefined : 50, scale: 'css', path: fileName };
+    
+    // Use the format parameter
+    const fileType = params.format;
+    
+    // Set quality for JPEG
+    const quality = fileType === 'jpeg' ? params.quality : undefined;
+    
+    // Screenshot options
+    const options: playwright.PageScreenshotOptions = { 
+      type: fileType, 
+      quality, 
+      scale: 'css'
+    };
+    
     const isElementScreenshot = params.element && params.ref;
 
     const code = [
-      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'} and save it as ${fileName}`,
+      `// Screenshot ${isElementScreenshot ? params.element : 'viewport'}`,
     ];
 
     const locator = params.ref ? snapshot.refLocator({ element: params.element || '', ref: params.ref }) : null;
@@ -64,16 +74,23 @@ const screenshot = defineTool({
     else
       code.push(`await page.screenshot(${javascript.formatObject(options)});`);
 
-    const includeBase64 = context.clientSupportsImages();
     const action = async () => {
-      const screenshot = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
-      return {
-        content: includeBase64 ? [{
-          type: 'image' as 'image',
-          data: screenshot.toString('base64'),
+      const screenshotBuffer = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
+      
+      // Return as ImageContent (compliant with MCP spec)
+      const content = [
+        {
+          type: 'text' as const,
+          text: `Screenshot taken (${screenshotBuffer.length} bytes, ${fileType.toUpperCase()})`
+        },
+        {
+          type: 'image' as const,
+          data: screenshotBuffer.toString('base64'),
           mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
-        }] : []
-      };
+        }
+      ];
+      
+      return { content };
     };
 
     return {
