@@ -42,7 +42,7 @@ clean:
 	docker rmi $(DOCKER_IMAGE):latest $(DOCKER_DEV_IMAGE):latest 2>/dev/null || true
 
 ## Lint - Run ESLint and TypeScript type checking
-lint: install
+lint: build
 	npm run update-readme
 	npx eslint .
 	npx tsc --noEmit
