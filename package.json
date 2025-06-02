@@ -24,6 +24,10 @@
     "ctest": "playwright test --project=chrome",
     "ftest": "playwright test --project=firefox",
     "wtest": "playwright test --project=webkit",
+    "docker:build": "make docker-build",
+    "docker:test": "make docker-test",
+    "docker:server": "make docker-server",
+    "docker:cleanup": "make docker-cleanup",
     "clean": "rm -rf lib",
     "npm-publish": "npm run clean && npm run build && npm run test && npm publish"
   },
