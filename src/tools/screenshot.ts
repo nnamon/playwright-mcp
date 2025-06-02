@@ -29,8 +29,8 @@ const screenshotSchema = z.object({
   filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
   element: z.string().optional().describe('Human-readable element description used to obtain permission to screenshot the element. If not provided, the screenshot will be taken of viewport. If element is provided, ref must be provided too.'),
   ref: z.string().optional().describe('Exact target element reference from the page snapshot. If not provided, the screenshot will be taken of viewport. If ref is provided, element must be provided too.'),
-  saveToFile: z.boolean().default(false).describe('Save screenshot to file instead of returning data'),
-  format: z.enum(['png', 'jpeg']).default('png').describe('Image format when returning data'),
+  saveToFile: z.boolean().default(false).describe('Save screenshot to file in addition to returning image data'),
+  format: z.enum(['png', 'jpeg']).default('png').describe('Image format'),
   quality: z.number().min(0).max(100).default(80).describe('JPEG quality (0-100), only for JPEG format'),
 }).refine(data => {
   return !!data.element === !!data.ref;
@@ -88,31 +88,28 @@ const screenshot = defineTool({
       // Save to file if requested
       if (params.saveToFile && fileName && screenshotBuffer) {
         await fs.writeFile(fileName, screenshotBuffer);
+        
+        // When saving to file, only return text status to save tokens
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Screenshot saved to: ${fileName} (${screenshotBuffer.length} bytes, ${fileType.toUpperCase()})`
+          }]
+        };
       }
       
-      const content = [];
-      
-      // Always return the enhanced response format (default behavior)
-      const response = {
-        filename: params.saveToFile ? fileName : undefined,
-        data: screenshotBuffer.toString('base64'),
-        mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
-        size: screenshotBuffer.length
-      };
-      
-      content.push({
-        type: 'text' as const,
-        text: JSON.stringify(response, null, 2)
-      });
-      
-      // Also include image content if client supports images
-      if (context.clientSupportsImages()) {
-        content.push({
+      // When not saving to file, return as ImageContent (compliant with MCP spec)
+      const content = [
+        {
+          type: 'text' as const,
+          text: `Screenshot taken (${screenshotBuffer.length} bytes)`
+        },
+        {
           type: 'image' as const,
           data: screenshotBuffer.toString('base64'),
           mimeType: fileType === 'png' ? 'image/png' : 'image/jpeg',
-        });
-      }
+        }
+      ];
       
       return { content };
     };
